@@ -1,4 +1,4 @@
-module github.com/alertbingo/cli
+module github.com/alertbingo/alertbingo
 
 go 1.24.11
 

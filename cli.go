@@ -7,8 +7,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/alertbingo/cli/api"
-	"github.com/alertbingo/cli/hoststats"
+	"github.com/alertbingo/alertbingo/api"
+	"github.com/alertbingo/alertbingo/hoststats"
 	"github.com/urfave/cli/v3"
 )
 

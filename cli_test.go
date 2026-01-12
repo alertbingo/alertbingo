@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/alertbingo/cli/api"
+	"github.com/alertbingo/alertbingo/api"
 )
 
 func TestFormatResponses(t *testing.T) {
