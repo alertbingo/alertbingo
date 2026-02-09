@@ -1,6 +1,49 @@
-## alert.bingo
+## [alert.bingo](https://alert.bingo) CLI
 
-### check
+Download the latest CLI: https://github.com/alertbingo/alertbingo/releases
+
+Place the downloaded binary at /usr/local/bin/alertbingo (or another location in your $PATH).
+
+The hoststats command posts the following checks for the host:
+
+* CPU usage
+* Disk Inodes Used %
+* Disk Space Used %
+* Memory usage
+* Uptime
+
+
+### Configuration Example
+
+Create a shell script (e.g. send_checks.sh) to configure and run the CLI:
+```bash
+#!/bin/bash
+
+export ALERTBINGO_TOKEN="xxx"
+export ALERTBINGO_SITE="staging"
+export ALERTBINGO_DASHBOARD="MyDashboard"
+export ALERTBINGO_INACTIVE_ESCALATE="10m"
+
+/usr/local/bin/alertbingo hoststats --service "$(hostname -s)"
+```
+
+Make the script executable:
+
+```bash
+chmod +x send_checks.sh
+```
+
+Scheduling with Cron - To send checks every minute, add a cron job:
+
+```
+* * * * * /path/to/send_checks.sh
+```
+
+
+
+## Command summary
+
+### check 
 
 ```
 NAME:
@@ -20,7 +63,6 @@ OPTIONS:
    --token string, -t string        API Bearer token [$ALERTBINGO_TOKEN]
    --api-url string                 API URL (default: "https://app.alert.bingo/api/v1/checks") [$ALERTBINGO_API_URL]
    --help, -h                       show help
-2026/01/12 19:45:52 Required flags "dashboard, site, service, name, token" not set
 ```
 
 
