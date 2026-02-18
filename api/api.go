@@ -80,7 +80,7 @@ func (c *Client) SendChecks(ctx context.Context, checks []CheckPayload) ([]Respo
 
 	var responses []Response
 	if err := json.Unmarshal(body, &responses); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w (body: %s)", err, truncateBody(body, 200))
 	}
 
 	return responses, nil
@@ -145,4 +145,12 @@ func FormatResponseSummary(body []byte) string {
 	}
 
 	return strings.Join(parts, "; ")
+}
+
+// truncateBody truncates a byte slice to a maximum length, appending "..." if truncated
+func truncateBody(body []byte, maxLen int) string {
+	if len(body) <= maxLen {
+		return string(body)
+	}
+	return string(body[:maxLen]) + "..."
 }

@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/alertbingo/alertbingo/api"
+	"github.com/alertbingo/alertbingo/certcheck"
 	"github.com/alertbingo/alertbingo/hoststats"
+	"github.com/alertbingo/alertbingo/urlcheck"
 	"github.com/urfave/cli/v3"
 )
 
@@ -216,6 +220,226 @@ func main() {
 					}
 
 					fmt.Println("Check sent successfully")
+
+					// Report any non-OK statuses and errors
+					if summary := formatResponses(responses); summary != "" {
+						fmt.Println(summary)
+					}
+
+					return nil
+				},
+			},
+			{
+				Name:  "certcheck",
+				Usage: "Check SSL/TLS certificate expiry for one or more URLs",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "dashboard",
+						Aliases:  []string{"d"},
+						Usage:    "Dashboard name",
+						Sources:  cli.EnvVars("ALERTBINGO_DASHBOARD"),
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "site",
+						Aliases:  []string{"s"},
+						Usage:    "Site identifier (e.g., myapp-prod)",
+						Sources:  cli.EnvVars("ALERTBINGO_SITE"),
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "name",
+						Aliases:  []string{"n"},
+						Usage:    "Check name (e.g., ssl)",
+						Sources:  cli.EnvVars("ALERTBINGO_NAME"),
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:    "message",
+						Aliases: []string{"m"},
+						Usage:   "Optional long-form status message",
+						Sources: cli.EnvVars("ALERTBINGO_MESSAGE"),
+					},
+					&cli.StringFlag{
+						Name:    "inactive-expire",
+						Usage:   "Optional duration string for inactive expiry (e.g., 48h or 30m)",
+						Sources: cli.EnvVars("ALERTBINGO_INACTIVE_EXPIRE"),
+					},
+					&cli.StringFlag{
+						Name:    "inactive-escalate",
+						Usage:   "Optional duration string for inactive escalation (e.g., 1h or 30m)",
+						Sources: cli.EnvVars("ALERTBINGO_INACTIVE_ESCALATE"),
+					},
+					&cli.StringFlag{
+						Name:    "highlighted",
+						Usage:   "Optional highlighted status",
+						Sources: cli.EnvVars("ALERTBINGO_HIGHLIGHTED"),
+					},
+					&cli.StringFlag{
+						Name:     "token",
+						Aliases:  []string{"t"},
+						Usage:    "API Bearer token",
+						Sources:  cli.EnvVars("ALERTBINGO_TOKEN"),
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:    "api-url",
+						Usage:   "API URL",
+						Sources: cli.EnvVars("ALERTBINGO_API_URL"),
+						Value:   "https://app.alert.bingo/api/v1/checks",
+					},
+					&cli.DurationFlag{
+						Name:    "timeout",
+						Usage:   "Timeout for TLS connection",
+						Sources: cli.EnvVars("ALERTBINGO_TIMEOUT"),
+						Value:   10 * time.Second,
+					},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					urls := cmd.Args().Slice()
+					if len(urls) == 0 {
+						return fmt.Errorf("at least one URL is required")
+					}
+
+					cfg := certcheck.Config{
+						Dashboard:        cmd.String("dashboard"),
+						Site:             cmd.String("site"),
+						Name:             cmd.String("name"),
+						Message:          cmd.String("message"),
+						InactiveExpire:   cmd.String("inactive-expire"),
+						InactiveEscalate: cmd.String("inactive-escalate"),
+						Highlighted:      cmd.String("highlighted"),
+						Timeout:          cmd.Duration("timeout"),
+					}
+
+					checks := certcheck.Collect(ctx, cfg, urls)
+
+					client := api.NewClient(cmd.String("api-url"), cmd.String("token"))
+					responses, err := client.SendChecks(ctx, checks)
+					if err != nil {
+						return err
+					}
+
+					fmt.Println("Certificate checks sent successfully")
+
+					// Report any non-OK statuses and errors
+					if summary := formatResponses(responses); summary != "" {
+						fmt.Println(summary)
+					}
+
+					return nil
+				},
+			},
+			{
+				Name:  "urlcheck",
+				Usage: "Check URL availability, status code, and optionally body content",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "dashboard",
+						Aliases:  []string{"d"},
+						Usage:    "Dashboard name",
+						Sources:  cli.EnvVars("ALERTBINGO_DASHBOARD"),
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "site",
+						Aliases:  []string{"s"},
+						Usage:    "Site identifier (e.g., myapp-prod)",
+						Sources:  cli.EnvVars("ALERTBINGO_SITE"),
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "name",
+						Aliases:  []string{"n"},
+						Usage:    "Check name (e.g., http)",
+						Sources:  cli.EnvVars("ALERTBINGO_NAME"),
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:    "message",
+						Aliases: []string{"m"},
+						Usage:   "Optional long-form status message",
+						Sources: cli.EnvVars("ALERTBINGO_MESSAGE"),
+					},
+					&cli.StringFlag{
+						Name:    "inactive-expire",
+						Usage:   "Optional duration string for inactive expiry (e.g., 48h or 30m)",
+						Sources: cli.EnvVars("ALERTBINGO_INACTIVE_EXPIRE"),
+					},
+					&cli.StringFlag{
+						Name:    "inactive-escalate",
+						Usage:   "Optional duration string for inactive escalation (e.g., 1h or 30m)",
+						Sources: cli.EnvVars("ALERTBINGO_INACTIVE_ESCALATE"),
+					},
+					&cli.StringFlag{
+						Name:    "highlighted",
+						Usage:   "Optional highlighted status",
+						Sources: cli.EnvVars("ALERTBINGO_HIGHLIGHTED"),
+					},
+					&cli.StringFlag{
+						Name:     "token",
+						Aliases:  []string{"t"},
+						Usage:    "API Bearer token",
+						Sources:  cli.EnvVars("ALERTBINGO_TOKEN"),
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:    "api-url",
+						Usage:   "API URL",
+						Sources: cli.EnvVars("ALERTBINGO_API_URL"),
+						Value:   "https://app.alert.bingo/api/v1/checks",
+					},
+					&cli.DurationFlag{
+						Name:    "timeout",
+						Usage:   "Timeout for HTTP request",
+						Sources: cli.EnvVars("ALERTBINGO_TIMEOUT"),
+						Value:   10 * time.Second,
+					},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					args := cmd.Args().Slice()
+					if len(args) == 0 {
+						return fmt.Errorf("URL is required")
+					}
+
+					params := urlcheck.CheckParams{
+						URL: args[0],
+					}
+
+					// Parse optional expected code
+					if len(args) >= 2 {
+						code, err := strconv.Atoi(args[1])
+						if err != nil {
+							return fmt.Errorf("invalid expected status code: %s", args[1])
+						}
+						params.ExpectedCode = code
+					}
+
+					// Parse optional expected body string
+					if len(args) >= 3 {
+						params.ExpectedBody = args[2]
+					}
+
+					cfg := urlcheck.Config{
+						Dashboard:        cmd.String("dashboard"),
+						Site:             cmd.String("site"),
+						Name:             cmd.String("name"),
+						Message:          cmd.String("message"),
+						InactiveExpire:   cmd.String("inactive-expire"),
+						InactiveEscalate: cmd.String("inactive-escalate"),
+						Highlighted:      cmd.String("highlighted"),
+						Timeout:          cmd.Duration("timeout"),
+					}
+
+					check := urlcheck.Check(ctx, cfg, params)
+
+					client := api.NewClient(cmd.String("api-url"), cmd.String("token"))
+					responses, err := client.SendChecks(ctx, []api.CheckPayload{check})
+					if err != nil {
+						return err
+					}
+
+					fmt.Println("URL check sent successfully")
 
 					// Report any non-OK statuses and errors
 					if summary := formatResponses(responses); summary != "" {
