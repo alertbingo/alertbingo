@@ -67,6 +67,11 @@ func TestCollect_InvalidURL(t *testing.T) {
 	if check.Message == "" {
 		t.Error("expected error message to be set")
 	}
+	// Service must be the bare hostname, even on the failure path, matching
+	// the success path (regression: failure previously sent the raw URL).
+	if check.Service != "invalid.invalid.invalid" {
+		t.Errorf("expected service 'invalid.invalid.invalid', got %s", check.Service)
+	}
 }
 
 func TestCollect_MultipleURLs(t *testing.T) {
@@ -82,6 +87,27 @@ func TestCollect_MultipleURLs(t *testing.T) {
 
 	if len(checks) != 2 {
 		t.Fatalf("expected 2 checks, got %d", len(checks))
+	}
+}
+
+func TestHostFromRawURL(t *testing.T) {
+	tests := []struct {
+		rawURL   string
+		expected string
+	}{
+		{"https://example.com", "example.com"},
+		{"https://example.com:8443", "example.com"},
+		{"https://example.com/path?q=1", "example.com"},
+		{"http://example.com", "example.com"},
+		// No scheme: url.Parse treats it as a path, so there is no hostname
+		// and we fall back to the raw value.
+		{"example.com", "example.com"},
+	}
+
+	for _, tt := range tests {
+		if got := hostFromRawURL(tt.rawURL); got != tt.expected {
+			t.Errorf("hostFromRawURL(%q) = %q, want %q", tt.rawURL, got, tt.expected)
+		}
 	}
 }
 

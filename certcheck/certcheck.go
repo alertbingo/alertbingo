@@ -4,6 +4,7 @@ package certcheck
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/alertbingo/alertbingo/api"
@@ -40,7 +41,7 @@ func checkCertificate(ctx context.Context, cfg Config, rawURL string) api.CheckP
 		return api.CheckPayload{
 			Dashboard:        cfg.Dashboard,
 			Site:             cfg.Site,
-			Service:          rawURL,
+			Service:          hostFromRawURL(rawURL),
 			Name:             cfg.Name,
 			AlertLevel:       2, // alert
 			Value:            "Error",
@@ -84,6 +85,19 @@ func checkCertificate(ctx context.Context, cfg Config, rawURL string) api.CheckP
 		InactiveEscalate: cfg.InactiveEscalate,
 		Highlighted:      cfg.Highlighted,
 	}
+}
+
+// hostFromRawURL extracts the bare hostname from a raw URL, mirroring the
+// parsing done in ssl.CheckCertificate so that the Service name is consistent
+// between success and failure paths. Falls back to the raw URL if parsing fails
+// or yields no hostname.
+func hostFromRawURL(rawURL string) string {
+	if parsed, err := url.Parse(rawURL); err == nil {
+		if host := parsed.Hostname(); host != "" {
+			return host
+		}
+	}
+	return rawURL
 }
 
 // appendAlertReason appends an alert reason to an existing message
